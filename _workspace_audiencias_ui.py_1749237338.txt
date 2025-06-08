@@ -1,0 +1,210 @@
+3-import datetime
+4-import re
+5-# import threading # No usado en este archivo
+6-import webbrowser
+7-import urllib.parse
+8:from tkcalendar import Calendar, DateEntry
+9-
+10-class AudienciasTab(ttk.Frame):
+11-    def __init__(self, parent, app_controller, *args, **kwargs):
+12-        super().__init__(parent, *args, **kwargs)
+13-        self.app_controller = app_controller
+14-        self.db_crm = self.app_controller.db_crm
+15-        self.selected_audiencia_id = None
+16-        self.fecha_seleccionada_agenda = datetime.date.today().strftime("%Y-%m-%d")
+17-        self._create_widgets()
+18-
+19-    def _create_widgets(self):
+20-        # Configurar el frame principal de AudienciasTab
+21:        self.columnconfigure(0, weight=1) # Panel Izquierdo: Calendario
+22-        self.columnconfigure(1, weight=2) # Panel Derecho: Lista y Detalles (más espacio)
+23-        self.rowconfigure(0, weight=1)    # Fila única para ambos paneles
+24-
+25:        # --- Panel Izquierdo: Calendario ---
+26:        # CORRECCIÓN: calendar_frame debe estar en row=0, column=0 de AudienciasTab
+27:        calendar_frame_container = ttk.Frame(self) # Contenedor para mejor padding si es necesario
+28:        calendar_frame_container.grid(row=0, column=0, sticky='nsew', padx=(0,5), pady=5)
+29:        calendar_frame_container.rowconfigure(0, weight=1)
+30:        calendar_frame_container.columnconfigure(0, weight=1)
+31-
+32:        calendar_frame = ttk.LabelFrame(calendar_frame_container, text="Calendario de Audiencias", padding="5")
+33:        calendar_frame.grid(row=0, column=0, sticky='nsew')
+34-        
+35:        calendar_frame.columnconfigure(0, weight=1) # Para el widget Calendar
+36:        calendar_frame.rowconfigure(0, weight=1)  # Para el widget Calendar (expansión vertical)
+37:        calendar_frame.rowconfigure(1, weight=0)  # Para add_aud_frame (sin expansión vertical)
+38-
+39:        # Calendario
+40:        self.calendar = Calendar(calendar_frame, selectmode='day', date_pattern='yyyy-mm-dd', 
+41-                                 tooltipforeground='black', tooltipbackground='#FFFFE0', locale='es_ES')
+42:        self.calendar.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
+43:        self.calendar.bind("<<CalendarSelected>>", self.actualizar_lista_audiencias)
+44:        self.calendar.tag_config('audiencia_marcador', background='lightblue', foreground='black')
+45-
+46-        # --- Frame para el botón de agregar audiencia ---
+47:        # CORRECCIÓN: add_aud_frame es hijo de calendar_frame, y el botón es hijo de add_aud_frame
+48:        add_aud_frame = ttk.Frame(calendar_frame)
+49:        add_aud_frame.grid(row=1, column=0, sticky='ew', pady=(5, 0), padx=5) # Debajo del calendario
+50-
+51-        self.add_audiencia_btn = ttk.Button(add_aud_frame, text="Agregar Audiencia", 
+52-                                        command=lambda: self.abrir_dialogo_audiencia(), state=tk.NORMAL)
+53-        # CORRECCIÓN: .pack() es correcto aquí porque add_aud_frame es su padre dedicado
+54-        self.add_audiencia_btn.pack(fill=tk.X, padx=0, pady=0) # padx/pady dentro de add_aud_frame
+55-
+56-        # CORRECCIÓN: Llamada a método no existente comentada. Implementar si es necesario.
+57-        # self.update_add_audiencia_button_state() 
+58-
+59-        # --- Panel Derecho: Lista y Detalles ---
+--
+153-        self.audiencia_link_lbl.grid(row=row_det, column=1, sticky=tk.EW, pady=2, padx=5)
+154-        self.audiencia_link_lbl.bind("<Button-1>", lambda e: self.abrir_link_audiencia_seleccionada()) # Asegurar que llama al método
+155-        row_det += 1
+156-        
+157-        self.cargar_audiencias_fecha_actual()
+158:        self.marcar_dias_audiencias_calendario() # Llamar después de cargar
+159-
+160-    # def update_add_audiencia_button_state(self):
+161-    #     # Implementar si es necesario, por ejemplo:
+162-    #     # if self.app_controller.selected_case:
+163-    #     #     self.add_audiencia_btn.config(state=tk.NORMAL)
+164-    #     # else:
+165-    #     #     self.add_audiencia_btn.config(state=tk.DISABLED) # O siempre NORMAL
+166-    #     pass
+167-
+168-
+169-    def cargar_audiencias_fecha_actual(self):
+170-        self.fecha_seleccionada_agenda = datetime.date.today().strftime("%Y-%m-%d")
+171:        # Asegurarse que el calendario visualmente muestra la fecha actual al inicio
+172-        try:
+173-            current_date = datetime.datetime.strptime(self.fecha_seleccionada_agenda, "%Y-%m-%d").date()
+174:            self.calendar.selection_set(current_date)
+175-        except Exception as e:
+176:            print(f"Error setting calendar initial date: {e}")
+177-        self.actualizar_lista_audiencias()
+178:        # self.marcar_dias_audiencias_calendario() # Se llama al final de _create_widgets
+179-
+180-    def actualizar_lista_audiencias(self, event=None):
+181:        if hasattr(self.calendar, 'selection_get') and self.calendar.selection_get():
+182-            try:
+183:                fecha_sel = self.calendar.selection_get()
+184-                self.fecha_seleccionada_agenda = fecha_sel.strftime("%Y-%m-%d")
+185-            except Exception as e: # Podría ser None si no hay selección
+186:                print(f"Error obteniendo fecha del calendario: {e}")
+187-                self.fecha_seleccionada_agenda = datetime.date.today().strftime("%Y-%m-%d")
+188-        else: # Si no hay event o selection_get no funciona como se espera
+189-             self.fecha_seleccionada_agenda = datetime.date.today().strftime("%Y-%m-%d")
+190-
+191-
+192-        for item in self.audiencias_tree.get_children():
+193-            self.audiencias_tree.delete(item)
+194-        
+195-        self.limpiar_detalles_audiencia() # Limpiar detalles al cambiar de día
+196-        self.deshabilitar_botones_audiencia() # Deshabilitar botones
+--
+217-                    audiencia.get('descripcion', '')
+218-                ))
+219-        except Exception as e:
+220-            messagebox.showerror("Error", f"Error al cargar audiencias: {e}")
+221-
+222:    def marcar_dias_audiencias_calendario(self):
+223-        try:
+224-            # Limpiar marcas anteriores para evitar duplicados si se llama múltiples veces
+225-            # Es importante que el tag 'audiencia' (o el que uses en calevent_create)
+226-            # sea el mismo que se usa en tag_config.
+227-            #calevent_remove(tag=None) removes all events.
+228:            self.calendar.calevent_remove(tag='audiencia') # Solo remueve los eventos con este tag específico.
+229-
+230-            fechas_con_audiencias = self.db_crm.get_dates_with_audiencias()
+231-            
+232-            for fecha_str in fechas_con_audiencias:
+233-                try:
+234-                    fecha = datetime.datetime.strptime(fecha_str, "%Y-%m-%d").date()
+235-                    # Usar un tag consistente, por ejemplo "audiencia_marcador"
+236:                    self.calendar.calevent_create(fecha, "Audiencia", tags='audiencia')
+237-                except ValueError: # Si la fecha_str no es válida
+238-                    print(f"Formato de fecha inválido en base de datos: {fecha_str}")
+239-                    continue
+240-            
+241-            # La configuración del tag debe hacerse una vez, idealmente en _create_widgets,
+242-            # pero aquí está bien si se asegura que no cause problemas.
+243:            # self.calendar.tag_config('audiencia', background="lightblue", foreground="darkblue")
+244-            # El tag_config ya está en _create_widgets, así que no es necesario repetirlo.
+245-            
+246-        except Exception as e:
+247-            print(f"Error al marcar días con audiencias: {e}")
+248-
+249-    def on_audiencia_tree_select(self, event=None):
+250-        selected_items = self.audiencias_tree.selection()
+251-        if selected_items:
+252-            selected_item = selected_items[0]
+253-            audiencia_id_str = self.audiencias_tree.item(selected_item, 'values')[0]
+--
+508-                self.db_crm.add_audiencia(caso_id_int, fecha_str, hora_str, link, desc, r_act, minutos_int)
+509-                messagebox.showinfo("Éxito", "Audiencia creada correctamente.", parent=dialog)
+510-
+511-            dialog.destroy()
+512-            self.actualizar_lista_audiencias()
+513:            self.marcar_dias_audiencias_calendario()
+514-            
+515-        except Exception as e:
+516-            messagebox.showerror("Error", f"Error al guardar audiencia: {e}", parent=dialog)
+517-
+518-
+519-    def parsear_hora(self, hora_str):
+520-        hora_str = hora_str.strip()
+521-        patron = r'^([01]?[0-9]|2[0-3])[:\.]?([0-5][0-9])$' # Permite HH:MM o HH.MM, o incluso HHMM si son 4 digitos
+522-        if len(hora_str) == 4 and hora_str.isdigit(): # Formato HHMM
+523-            match = re.match(r'([01]?[0-9]|2[0-3])([0-5][0-9])', hora_str)
+--
+555-                self.limpiar_detalles_audiencia()
+556-                self.deshabilitar_botones_audiencia()
+557-                
+558-                # Forzar recarga de la fecha que estaba seleccionada
+559-                self.fecha_seleccionada_agenda = fecha_a_recargar 
+560:                try: # Intentar seleccionar la fecha en el calendario
+561-                    date_obj = datetime.datetime.strptime(fecha_a_recargar, "%Y-%m-%d").date()
+562:                    self.calendar.selection_set(date_obj)
+563-                except: pass # Si falla, no importa mucho, actualizar_lista_audiencias usará la fecha guardada
+564-                
+565-                self.actualizar_lista_audiencias() 
+566:                self.marcar_dias_audiencias_calendario()
+567-                
+568-            except Exception as e:
+569-                messagebox.showerror("Error", f"Error al eliminar audiencia: {e}")
+570-
+571-    def abrir_link_audiencia_seleccionada(self, event=None):
+572-        if not self.selected_audiencia_id:
+573-            if event: # Solo mostrar mensaje si fue un click explícito y no hay selección
+574-                 messagebox.showinfo("Sin Selección", "Seleccione una audiencia primero.")
+575-            return
+576-
+--
+662-        except Exception as e:
+663-            messagebox.showerror("Error", f"Error al compartir por WhatsApp: {e}")
+664-
+665-    def refresh_data(self):
+666-        current_selected_audiencia_id = self.selected_audiencia_id
+667:        fecha_actual_calendario = self.fecha_seleccionada_agenda
+668-
+669:        # Actualizar lista y marcas del calendario
+670-        self.actualizar_lista_audiencias() # Esto ya usa self.fecha_seleccionada_agenda
+671:        self.marcar_dias_audiencias_calendario()
+672-        
+673-        if current_selected_audiencia_id:
+674-            # Intentar re-seleccionar la audiencia si aún existe en la fecha actual
+675-            found = False
+676-            for item in self.audiencias_tree.get_children():
+677-                if int(self.audiencias_tree.item(item, 'values')[0]) == current_selected_audiencia_id:
+678:                    # Verificar que la fecha de la audiencia re-seleccionada coincida con la del calendario
+679-                    audiencia_data = self.db_crm.get_audiencia_by_id(current_selected_audiencia_id)
+680:                    if audiencia_data and audiencia_data['fecha'] == fecha_actual_calendario:
+681-                        self.audiencias_tree.selection_set(item)
+682-                        self.audiencias_tree.focus(item)
+683-                        # on_audiencia_tree_select se disparará y actualizará detalles/botones
+684-                        found = True
+685-                        break
+686-            if not found: # Si la audiencia ya no está o no es de esta fecha
+687-                self.selected_audiencia_id = None
+688-                self.limpiar_detalles_audiencia()
+689-                self.deshabilitar_botones_audiencia()
+690-        else:

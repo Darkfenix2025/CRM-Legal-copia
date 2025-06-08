@@ -1,0 +1,199 @@
+441-        client_scrollbar_x = ttk.Scrollbar(client_list_frame, orient=tk.HORIZONTAL, command=self.client_tree.xview); self.client_tree.configure(xscrollcommand=client_scrollbar_x.set)
+442-        self.client_tree.grid(row=0, column=0, sticky='nsew'); client_scrollbar_y.grid(row=0, column=1, sticky='ns'); client_scrollbar_x.grid(row=1, column=0, sticky='ew')
+443-        self.client_tree.bind('<<TreeviewSelect>>', self.on_client_select)
+444-
+445-        client_buttons_frame = ttk.Frame(col1_frame); client_buttons_frame.grid(row=1, column=0, sticky='ew', pady=5)
+446:        self.add_client_btn = ttk.Button(client_buttons_frame, text="ALTA", command=lambda: self.open_client_dialog()); self.add_client_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+447-        self.edit_client_btn = ttk.Button(client_buttons_frame, text="MODIFICAR", command=lambda: self.open_client_dialog(self.selected_client['id'] if self.selected_client else None), state=tk.DISABLED); self.edit_client_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+448-        self.delete_client_btn = ttk.Button(client_buttons_frame, text="BORRAR", command=self.delete_client, state=tk.DISABLED); self.delete_client_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+449-
+450-        client_details_frame = ttk.LabelFrame(col1_frame, text="Detalles Cliente", padding="10"); client_details_frame.grid(row=2, column=0, sticky='ew', pady=(5, 0)); client_details_frame.columnconfigure(1, weight=1)
+451-        ttk.Label(client_details_frame, text="Nombre:").grid(row=0, column=0, sticky=tk.W, pady=1, padx=5); self.client_detail_name_lbl = ttk.Label(client_details_frame, text="", wraplength=200); self.client_detail_name_lbl.grid(row=0, column=1, sticky=tk.EW, pady=1, padx=5)
+452:        ttk.Label(client_details_frame, text="Dirección:").grid(row=1, column=0, sticky=tk.W, pady=1, padx=5); self.client_detail_address_lbl = ttk.Label(client_details_frame, text="", wraplength=200); self.client_detail_address_lbl.grid(row=1, column=1, sticky=tk.EW, pady=1, padx=5)
+453-        ttk.Label(client_details_frame, text="Email:").grid(row=2, column=0, sticky=tk.W, pady=1, padx=5); self.client_detail_email_lbl = ttk.Label(client_details_frame, text="", wraplength=200); self.client_detail_email_lbl.grid(row=2, column=1, sticky=tk.EW, pady=1, padx=5)
+454-        ttk.Label(client_details_frame, text="WhatsApp:").grid(row=3, column=0, sticky=tk.W, pady=1, padx=5); self.client_detail_whatsapp_lbl = ttk.Label(client_details_frame, text="", wraplength=200); self.client_detail_whatsapp_lbl.grid(row=3, column=1, sticky=tk.EW, pady=1, padx=5)
+455-        ttk.Label(client_details_frame, text="Etiquetas:").grid(row=4, column=0, sticky=tk.W, pady=1, padx=5)
+456-        self.client_detail_tags_lbl = ttk.Label(client_details_frame, text="", wraplength=200)
+457-        self.client_detail_tags_lbl.grid(row=4, column=1, sticky=tk.EW, pady=1, padx=5)
+--
+474-        case_scrollbar_x = ttk.Scrollbar(case_list_frame, orient=tk.HORIZONTAL, command=self.case_tree.xview); self.case_tree.configure(xscrollcommand=case_scrollbar_x.set)
+475-        self.case_tree.grid(row=0, column=0, sticky='nsew'); case_scrollbar_Y.grid(row=0, column=1, sticky='ns'); case_scrollbar_x.grid(row=1, column=0, sticky='ew')
+476-        self.case_tree.bind('<<TreeviewSelect>>', self.on_case_select)
+477-
+478-        case_buttons_frame = ttk.Frame(col2_frame); case_buttons_frame.grid(row=1, column=0, sticky='ew', pady=5)
+479:        self.add_case_btn = ttk.Button(case_buttons_frame, text="Alta", command=lambda: self.open_case_dialog(), state=tk.DISABLED); self.add_case_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+480-        self.edit_case_btn = ttk.Button(case_buttons_frame, text="Modificar", command=lambda: self.open_case_dialog(self.selected_case['id'] if self.selected_case else None), state=tk.DISABLED); self.edit_case_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+481-        self.delete_case_btn = ttk.Button(case_buttons_frame, text="Baja", command=self.delete_case, state=tk.DISABLED); self.delete_case_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+482-
+483-        cal_frame = ttk.LabelFrame(col2_frame, text="Calendario", padding=5); cal_frame.grid(row=2, column=0, sticky='nsew', pady=5)
+484-        cal_frame.columnconfigure(0, weight=1); cal_frame.rowconfigure(0, weight=1) # Calendario expandible dentro de su frame
+--
+486-        self.agenda_cal.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
+487-        self.agenda_cal.bind("<<CalendarSelected>>", self.actualizar_lista_audiencias)
+488-        self.agenda_cal.tag_config('audiencia_marcador', background='lightblue', foreground='black')
+489-
+490-        add_aud_frame = ttk.Frame(col2_frame); add_aud_frame.grid(row=3, column=0, sticky='ew', pady=(5, 0))
+491:        self.add_audiencia_btn = ttk.Button(add_aud_frame, text="Agregar Audiencia", command=lambda: self.abrir_dialogo_audiencia(), state=tk.NORMAL) # Estado inicial gestionado por update_add_audiencia_button_state
+492-        self.add_audiencia_btn.pack(fill=tk.X, padx=10, pady=5)
+493-        self.update_add_audiencia_button_state()
+494-
+495-        # --- Columna 3: Notebook y Audiencias ---
+496-        col3_frame = ttk.Frame(crm_main_frame); col3_frame.grid(row=0, column=2, sticky='nsew', padx=(5, 0), pady=5)
+497-        col3_frame.rowconfigure(0, weight=2) # Notebook con más peso
+498-        col3_frame.rowconfigure(1, weight=1) # Área de audiencias con peso
+499-        col3_frame.columnconfigure(0, weight=1)
+500-
+501:        right_notebook_frame = ttk.Frame(col3_frame); right_notebook_frame.grid(row=0, column=0, sticky='nsew', pady=(0, 5))
+502:        right_notebook_frame.rowconfigure(0, weight=1); right_notebook_frame.columnconfigure(0, weight=1)
+503:        self.main_notebook = ttk.Notebook(right_notebook_frame); self.main_notebook.grid(row=0, column=0, sticky='nsew')
+504-
+505-        # Pestaña Detalles del Caso
+506:        self.case_details_tab = ttk.Frame(self.main_notebook, padding="10"); self.main_notebook.add(self.case_details_tab, text='Detalles del Caso')
+507-
+508-        self.case_details_tab.columnconfigure(0, weight=0) # Etiqueta de campo (ancho fijo)
+509-        self.case_details_tab.columnconfigure(1, weight=1) # Valor del campo (expandible)
+510-        self.case_details_tab.columnconfigure(2, weight=0) # Etiqueta de campo (ancho fijo)
+511-        self.case_details_tab.columnconfigure(3, weight=1) # Valor del campo (expandible)
+--
+581-
+582-        # Configurar la última fila para que no se expanda innecesariamente si no hay más contenido
+583-        self.case_details_tab.rowconfigure(current_row, weight=0)
+584-
+585-        # Pestaña Documentación
+586:        self.documents_tab = ttk.Frame(self.main_notebook, padding="10"); self.main_notebook.add(self.documents_tab, text='Documentación')
+587-        self.documents_tab.columnconfigure(0, weight=1); self.documents_tab.rowconfigure(1, weight=0); self.documents_tab.rowconfigure(3, weight=1) # Lista de archivos se expande
+588-        ttk.Label(self.documents_tab, text="Carpeta Documentos:").grid(row=0, column=0, pady=(0, 5), sticky=tk.W)
+589-        folder_frame = ttk.Frame(self.documents_tab); folder_frame.grid(row=1, column=0, sticky=tk.EW, pady=(0, 5)); folder_frame.columnconfigure(0, weight=1) # Label de ruta se expande
+590-        self.folder_path_lbl = ttk.Label(folder_frame, text="Selecciona un caso", relief=tk.SUNKEN, anchor=tk.W); self.folder_path_lbl.grid(row=0, column=0, sticky=tk.EW, padx=(0, 5))
+591-        self.select_folder_btn = ttk.Button(folder_frame, text="...", command=self.select_case_folder, state=tk.DISABLED, width=3); self.select_folder_btn.grid(row=0, column=1, sticky=tk.E, padx=(0,5))
+--
+595-        self.document_tree = ttk.Treeview(documents_tree_frame, columns=('Nombre', 'Tamaño', 'Fecha Mod.'), show='headings'); self.document_tree.heading('Nombre', text='Nombre'); self.document_tree.heading('Tamaño', text='Tamaño'); self.document_tree.heading('Fecha Mod.', text='Modificado'); self.document_tree.column('Nombre', width=250, stretch=True); self.document_tree.column('Tamaño', width=100, stretch=tk.NO, anchor=tk.E); self.document_tree.column('Fecha Mod.', width=140, stretch=tk.NO)
+596-        document_scrollbar = ttk.Scrollbar(documents_tree_frame, orient=tk.VERTICAL, command=self.document_tree.yview); self.document_tree.configure(yscrollcommand=document_scrollbar.set); document_scrollbar.pack(side=tk.RIGHT, fill=tk.Y); self.document_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+597-        self.document_tree.bind("<Double-1>", self.on_document_double_click)
+598-
+599-        # --- Pestaña de Tareas (NUEVA) ---
+600:        self.tareas_tab_frame = TareasTab(self.main_notebook, self) # 'self' es CRMLegalApp (app_controller)
+601:        self.main_notebook.add(self.tareas_tab_frame, text="Tareas/Plazos")
+602-        # --- Fin Pestaña de Tareas ---
+603-
+604-        # --- Pestaña de Partes Intervinientes (MODULARIZADA) ---
+605:        self.partes_tab_frame = PartesTab(self.main_notebook, self) # 'self' es CRMLegalApp (app_controller)
+606:        self.main_notebook.add(self.partes_tab_frame, text="Partes")
+607-        # --- Fin Pestaña de Partes ---
+608-
+609-        # --- Pestaña de Seguimiento (MODULARIZADA) ---
+610:        self.seguimiento_tab_frame = SeguimientoTab(self.main_notebook, self) # 'self' es CRMLegalApp (app_controller)
+611:        self.main_notebook.add(self.seguimiento_tab_frame, text="Seguimiento")
+612-
+613-        # --- Área de audiencias (lista y detalles) ---
+614-        audiencia_area_frame = ttk.Frame(col3_frame) # Parent es col3_frame
+615-        audiencia_area_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+616-        audiencia_area_frame.columnconfigure(0, weight=1) # Lista de audiencias y acciones
+--
+649-        audiencia_details_scroll = ttk.Scrollbar(audiencia_details_frame, orient=tk.VERTICAL, command=self.audiencia_details_text.yview); self.audiencia_details_text.configure(yscrollcommand=audiencia_details_scroll.set)
+650-        audiencia_details_scroll.grid(row=0, column=1, sticky='ns'); self.audiencia_details_text.grid(row=0, column=0, sticky='nsew')
+651-
+652-
+653-        # --- Estado Inicial de Pestañas y Botones ---
+654:        self.main_notebook.tab(self.case_details_tab, state='disabled')
+655:        self.main_notebook.tab(self.documents_tab, state='disabled')
+656:        self.main_notebook.tab(self.tareas_tab_frame, state='disabled') # NUEVA PESTAÑA TAREAS
+657:        self.main_notebook.tab(self.partes_tab_frame, state='disabled') # Pestaña de Partes
+658:        self.main_notebook.tab(self.seguimiento_tab_frame, state='disabled')
+659-        
+660-        # Establecer estado inicial de botones dentro de las pestañas modulares
+661-        if hasattr(self, 'tareas_tab_frame'):
+662-            self.tareas_tab_frame.set_add_button_state() # Llamada inicial para estado correcto
+663-        if hasattr(self, 'seguimiento_tab_frame'):
+--
+677-        self.clear_client_details()
+678-        self.clear_case_list() # Esto ya llama a clear_case_details que limpia documentos y deshabilita pestañas
+679-        self.disable_client_buttons()
+680-        # Las pestañas y sus contenidos se manejan en clear_case_details y on_case_select
+681-        if hasattr(self, 'tareas_tab_frame'):
+682:            self.main_notebook.tab(self.tareas_tab_frame, state='disabled')
+683-            self.tareas_tab_frame.load_tareas(None) # Limpiar tareas
+684-        self.update_add_audiencia_button_state()
+685-
+686-
+687-    def on_client_select(self, event):
+--
+705-                self.clear_case_list() # Limpia casos y detalles de caso (incluyendo pestañas)
+706-                self.disable_client_buttons()
+707-
+708-            if not self.selected_client: # Si la selección de cliente falla o no es válida      
+709-                if hasattr(self, 'tareas_tab_frame'):
+710:                    self.main_notebook.tab(self.tareas_tab_frame, state='disabled')
+711-                    self.tareas_tab_frame.load_tareas(None)
+712-
+713-        else: # No hay items seleccionados en client_tree
+714-            if hasattr(self, 'tareas_tab_frame'):
+715:                self.main_notebook.tab(self.tareas_tab_frame, state='disabled')
+716-                self.tareas_tab_frame.load_tareas(None)
+717-            
+718-            self.selected_client = None
+719-            self.clear_client_details()
+720-            self.clear_case_list() # Limpia casos y detalles de caso (incluyendo pestañas)
+--
+725-    # En main_app.py, dentro de la clase CRMLegalApp
+726-
+727-    def display_client_details(self, client_data):
+728-        if client_data:
+729-            self.client_detail_name_lbl.config(text=client_data.get('nombre', 'N/A'))
+730:            self.client_detail_address_lbl.config(text=client_data.get('direccion', 'N/A'))
+731-            self.client_detail_email_lbl.config(text=client_data.get('email', 'N/A'))
+732-            self.client_detail_whatsapp_lbl.config(text=client_data.get('whatsapp', 'N/A'))
+733-
+734-            # --- MOSTRAR ETIQUETAS ---
+735-            nombres_etiquetas = [] # Inicializar como lista vacía
+--
+748-        else:
+749-            self.clear_client_details()
+750-
+751-    def clear_client_details(self):
+752-        self.client_detail_name_lbl.config(text="")
+753:        self.client_detail_address_lbl.config(text="")
+754-        self.client_detail_email_lbl.config(text="")
+755-        self.client_detail_whatsapp_lbl.config(text="")
+756-        # Si añades un Label para etiquetas, también límpialo aquí:
+757-        if hasattr(self, 'client_detail_tags_lbl'):
+758-            self.client_detail_tags_lbl.config(text="")
+--
+898-
+899-    def disable_case_buttons(self):
+900-        self.edit_case_btn.config(state=tk.DISABLED); self.delete_case_btn.config(state=tk.DISABLED)
+901-
+902-    def enable_detail_tabs_for_case(self):
+903:        self.main_notebook.tab(self.case_details_tab, state='normal')
+904:        self.main_notebook.tab(self.documents_tab, state='normal')
+905-        if hasattr(self, 'partes_tab_frame'):
+906:            self.main_notebook.tab(self.partes_tab_frame, state='normal')
+907-        if hasattr(self, 'seguimiento_tab_frame'):
+908:            self.main_notebook.tab(self.seguimiento_tab_frame, state='normal')
+909-        if hasattr(self, 'tareas_tab_frame'):
+910:            self.main_notebook.tab(self.tareas_tab_frame, state='normal')
+911-        
+912-        if self.selected_case: # Al seleccionar un caso, por defecto ir a Detalles del Caso
+913:            self.main_notebook.select(self.case_details_tab)
+914-
+915-    def disable_detail_tabs_for_case(self):
+916:        self.main_notebook.tab(self.case_details_tab, state='disabled')
+917:        self.main_notebook.tab(self.documents_tab, state='disabled')
+918-        
+919-        if hasattr(self, 'partes_tab_frame'):
+920:            self.main_notebook.tab(self.partes_tab_frame, state='disabled')
+921-            if hasattr(self.partes_tab_frame, 'load_partes'): # Seguridad adicional
+922-                self.partes_tab_frame.load_partes(None) 
+923-        
+924-        if hasattr(self, 'seguimiento_tab_frame'):
+925:            self.main_notebook.tab(self.seguimiento_tab_frame, state='disabled')
+926-            if hasattr(self.seguimiento_tab_frame, 'load_actividades'): # Seguridad adicional
+927-                self.seguimiento_tab_frame.load_actividades(None)
+928-
+929-        if hasattr(self, 'tareas_tab_frame'):
+930:            self.main_notebook.tab(self.tareas_tab_frame, state='disabled')
+931-            if hasattr(self.tareas_tab_frame, 'load_tareas'):
+932-                self.tareas_tab_frame.load_tareas(None) 
+933-
+934-# --- NUEVOS MÉTODOS PARA DIÁLOGOS Y LÓGICA DE TAREAS ---
+935-

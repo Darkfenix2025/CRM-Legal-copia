@@ -1,0 +1,632 @@
+143-
+144-            # ... (después de CREATE TABLE IF NOT EXISTS datos_usuario (...) ...)
+145-
+146-            # --- NUEVAS TABLAS PARA ETIQUETAS ---
+147-            cursor.execute('''
+148:                CREATE TABLE IF NOT EXISTS etiquetas (
+149-                    id_etiqueta INTEGER PRIMARY KEY AUTOINCREMENT,
+150-                    nombre_etiqueta TEXT NOT NULL UNIQUE COLLATE NOCASE 
+151-                    
+152-                );
+153-            ''')
+154-            # COLLATE NOCASE en UNIQUE para que "Urgente" y "urgente" se consideren la misma etiqueta.
+155-
+156-            cursor.execute('''
+157:                CREATE TABLE IF NOT EXISTS cliente_etiquetas (
+158-                    cliente_id INTEGER NOT NULL,
+159-                    etiqueta_id INTEGER NOT NULL,
+160-                    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE,
+161:                    FOREIGN KEY (etiqueta_id) REFERENCES etiquetas(id_etiqueta) ON DELETE CASCADE,
+162-                    PRIMARY KEY (cliente_id, etiqueta_id)
+163-                );
+164-            ''')
+165-
+166-            cursor.execute('''
+167:                CREATE TABLE IF NOT EXISTS caso_etiquetas (
+168-                    caso_id INTEGER NOT NULL,
+169-                    etiqueta_id INTEGER NOT NULL,
+170-                    FOREIGN KEY (caso_id) REFERENCES casos(id) ON DELETE CASCADE,
+171:                    FOREIGN KEY (etiqueta_id) REFERENCES etiquetas(id_etiqueta) ON DELETE CASCADE,
+172-                    PRIMARY KEY (caso_id, etiqueta_id)
+173-                );
+174-            ''')
+175:            print("Tablas de etiquetas verificadas/creadas con éxito.")
+176-            # --- FIN NUEVAS TABLAS PARA ETIQUETAS ---
+177-
+178-            # Opcional: Insertar una fila por defecto si la tabla está vacía la primera vez
+179-            # Esto asegura que siempre haya una fila para actualizar, simplificando la lógica de guardado.
+180-            cursor.execute('''
+181-                INSERT OR IGNORE INTO datos_usuario (id) VALUES (1);
+182-            ''')
+183-
+184-            # --- NUEVA TABLA: tareas ---
+185-            cursor.execute('''
+186-                CREATE TABLE IF NOT EXISTS tareas (
+187-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+188-                    caso_id INTEGER,                     -- Puede ser NULL para tareas generales
+189-                    descripcion TEXT NOT NULL,
+190:                    fecha_creacion TEXT NOT NULL,        -- YYYY-MM-DD HH:MM:SS
+191-                    fecha_vencimiento TEXT,              -- YYYY-MM-DD (la hora es opcional o fin del día)
+192-                    prioridad TEXT DEFAULT 'Media',      -- Ej: 'Alta', 'Media', 'Baja'
+193-                    estado TEXT NOT NULL DEFAULT 'Pendiente', -- Ej: 'Pendiente', 'En Progreso', 'Completada', 'Cancelada'
+194-                    notas TEXT,
+195-                    es_plazo_procesal INTEGER DEFAULT 0, -- 0 para False, 1 para True
+196-                    recordatorio_activo INTEGER DEFAULT 0,
+197-                    recordatorio_dias_antes INTEGER DEFAULT 1,
+198-                    fecha_ultima_notificacion TEXT,      -- Para controlar notificaciones repetitivas
+199-                    FOREIGN KEY (caso_id) REFERENCES casos(id) ON DELETE SET NULL -- O CASCADE si quieres que se borren con el caso
+200-                );
+--
+215-                    descripcion TEXT NOT NULL,
+216-                    monto REAL NOT NULL DEFAULT 0.0,
+217-                    fecha TEXT NOT NULL,
+218-                    estado TEXT NOT NULL DEFAULT 'Pendiente',  -- Pendiente, Cobrado, Cancelado
+219-                    tipo TEXT NOT NULL DEFAULT 'Consulta',     -- Consulta, Representación, Gestión, Otro
+220:                    fecha_creacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+221-                    notas TEXT,
+222-                    FOREIGN KEY (caso_id) REFERENCES casos(id) ON DELETE CASCADE
+223-                );
+224-            ''')
+225-
+226-            # Tabla de gastos
+227-            cursor.execute('''
+228-                CREATE TABLE IF NOT EXISTS gastos (
+229-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+230-                    caso_id INTEGER NOT NULL,
+231-                    descripcion TEXT NOT NULL,
+232-                    monto REAL NOT NULL DEFAULT 0.0,
+233-                    fecha TEXT NOT NULL,
+234-                    categoria TEXT NOT NULL DEFAULT 'General',  -- General, Viajes, Comunicaciones, Documentos, Otros
+235-                    reembolsable INTEGER DEFAULT 1,             -- 0 = No, 1 = Sí
+236:                    fecha_creacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+237-                    notas TEXT,
+238-                    comprobante_path TEXT,                      -- Ruta al archivo del comprobante
+239-                    FOREIGN KEY (caso_id) REFERENCES casos(id) ON DELETE CASCADE
+240-                );
+241-            ''')
+242-
+243-            # Tabla de facturas
+244-            cursor.execute('''
+245-                CREATE TABLE IF NOT EXISTS facturas (
+246-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+--
+250-                    fecha_vencimiento TEXT,
+251-                    monto REAL NOT NULL DEFAULT 0.0,
+252-                    estado TEXT NOT NULL DEFAULT 'Pendiente',   -- Pendiente, Pagada, Vencida, Cancelada
+253-                    descripcion TEXT,
+254-                    archivo_path TEXT,                          -- Ruta al archivo PDF de la factura
+255:                    fecha_creacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+256-                    fecha_pago TEXT,                            -- Fecha en que fue pagada
+257-                    metodo_pago TEXT,                           -- Efectivo, Transferencia, Cheque, etc.
+258-                    FOREIGN KEY (caso_id) REFERENCES casos(id) ON DELETE CASCADE
+259-                );
+260-            ''')
+261-
+262-            # Tabla de pagos (para tracking detallado de pagos de facturas)
+263-            cursor.execute('''
+264-                CREATE TABLE IF NOT EXISTS pagos (
+265-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+--
+267-                    monto REAL NOT NULL DEFAULT 0.0,
+268-                    fecha_pago TEXT NOT NULL,
+269-                    metodo_pago TEXT NOT NULL,
+270-                    referencia TEXT,                            -- Número de transferencia, cheque, etc.
+271-                    notas TEXT,
+272:                    fecha_creacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+273-                    FOREIGN KEY (factura_id) REFERENCES facturas(id) ON DELETE CASCADE
+274-                );
+275-            ''')
+276-
+277-            # Índices para tablas financieras
+278-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_honorarios_caso_id ON honorarios (caso_id);')
+279-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_honorarios_fecha ON honorarios (fecha);')
+280-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_honorarios_estado ON honorarios (estado);')
+281-            
+282-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_gastos_caso_id ON gastos (caso_id);')
+--
+291-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_pagos_factura_id ON pagos (factura_id);')
+292-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_pagos_fecha ON pagos (fecha_pago);')
+293-            # --- FIN NUEVAS TABLAS FINANCIERAS ---
+294-
+295-            # --- ACTUALIZACIÓN DE TABLAS DE ETIQUETAS PARA COMPATIBILIDAD ---
+296:            # Agregar nuevas columnas a la tabla etiquetas existente para mayor funcionalidad
+297-            try:
+298:                cursor.execute('ALTER TABLE etiquetas ADD COLUMN descripcion TEXT DEFAULT "";')
+299-            except sqlite3.OperationalError:
+300-                pass  # La columna ya existe
+301-            
+302-            try:
+303:                cursor.execute('ALTER TABLE etiquetas ADD COLUMN color TEXT DEFAULT "#3498db";')
+304-            except sqlite3.OperationalError:
+305-                pass  # La columna ya existe
+306-                
+307-            try:
+308:                cursor.execute('ALTER TABLE etiquetas ADD COLUMN tipo TEXT DEFAULT "general";')
+309-            except sqlite3.OperationalError:
+310-                pass  # La columna ya existe
+311-                
+312-            try:
+313:                cursor.execute('ALTER TABLE etiquetas ADD COLUMN fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP;')
+314-            except sqlite3.OperationalError:
+315-                pass  # La columna ya existe
+316-
+317:            # Agregar columna etiquetas como texto a clientes y casos para compatibilidad
+318-            try:
+319:                cursor.execute('ALTER TABLE clientes ADD COLUMN etiquetas TEXT DEFAULT "";')
+320-            except sqlite3.OperationalError:
+321-                pass  # La columna ya existe
+322-                
+323-            try:
+324:                cursor.execute('ALTER TABLE casos ADD COLUMN etiquetas TEXT DEFAULT "";')
+325-            except sqlite3.OperationalError:
+326-                pass  # La columna ya existe
+327-            # --- FIN ACTUALIZACIÓN ETIQUETAS ---
+328-
+329-            conn.commit()
+330-            print("Tablas verificadas/creadas con éxito (partes_intervinientes actualizada).")
+331-        except sqlite3.Error as e:
+332-            print(f"Error al crear tablas: {e}")
+333-            conn.rollback()
+334-        finally:
+--
+731-    conn = connect_db()
+732-    new_id = None
+733-    if conn:
+734-        try:
+735-            cursor = conn.cursor()
+736:            fecha_creacion = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+737-            
+738-            # Asegurarse de que fecha_vencimiento (si se provee) solo sea fecha YYYY-MM-DD
+739-            if fecha_vencimiento:
+740-                try:
+741-                    # Intenta parsear para validar y reformatear si es necesario (ej. si viene con hora)
+742-                    fecha_venc_dt = datetime.datetime.strptime(fecha_vencimiento, "%Y-%m-%d %H:%M:%S") # Si podría venir con hora
+743-                    fecha_vencimiento = fecha_venc_dt.strftime("%Y-%m-%d")
+744-                except ValueError:
+745-                    try:
+746-                        fecha_venc_dt = datetime.datetime.strptime(fecha_vencimiento, "%Y-%m-%d")
+--
+748-                    except ValueError:
+749-                        print(f"Advertencia: Formato de fecha_vencimiento ('{fecha_vencimiento}') no válido. Se guardará como NULL.")
+750-                        fecha_vencimiento = None
+751-            
+752-            cursor.execute('''
+753:                INSERT INTO tareas (caso_id, descripcion, fecha_creacion, fecha_vencimiento, prioridad, estado, notas, es_plazo_procesal, recordatorio_activo, recordatorio_dias_antes)
+754-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+755:            ''', (caso_id, descripcion, fecha_creacion, fecha_vencimiento, prioridad, estado, notas, es_plazo_procesal, recordatorio_activo, recordatorio_dias_antes))
+756-            conn.commit()
+757-            new_id = cursor.lastrowid
+758-            if new_id and caso_id:
+759-                update_last_activity(caso_id) # Actualizar timestamp del caso si la tarea está asociada
+760-            print(f"Tarea ID {new_id} ('{descripcion[:30]}...') agregada.")
+761-        except sqlite3.Error as e:
+762-            print(f"Error al agregar tarea: {e}")
+763-            conn.rollback()
+764-        finally:
+765-            close_db(conn)
+--
+1285-
+1286-    if conn:
+1287-        try:
+1288-            cursor = conn.cursor()
+1289-            # Primero, verificar si la etiqueta ya existe (ignorando mayúsculas/minúsculas)
+1290:            cursor.execute("SELECT id_etiqueta FROM etiquetas WHERE nombre_etiqueta = ?", (nombre_etiqueta_normalizado,))
+1291-            row = cursor.fetchone()
+1292-            if row:
+1293-                etiqueta_id = row['id_etiqueta']
+1294-                print(f"Etiqueta '{nombre_etiqueta_normalizado}' ya existe con ID: {etiqueta_id}.")
+1295-            else:
+1296-                # Si no existe, insertarla
+1297:                cursor.execute("INSERT INTO etiquetas (nombre_etiqueta) VALUES (?)", (nombre_etiqueta_normalizado,))
+1298-                conn.commit()
+1299-                etiqueta_id = cursor.lastrowid
+1300-                print(f"Etiqueta '{nombre_etiqueta_normalizado}' agregada con ID: {etiqueta_id}.")
+1301-        except sqlite3.IntegrityError: # Por si acaso, aunque el COLLATE NOCASE debería manejarlo en la búsqueda
+1302-            print(f"Error de integridad al intentar agregar etiqueta '{nombre_etiqueta_normalizado}'. Podría ya existir con diferente capitalización si no se usa COLLATE NOCASE en la tabla.")
+1303-            # Re-intentar obtenerla si falló la inserción por unicidad
+1304:            cursor.execute("SELECT id_etiqueta FROM etiquetas WHERE nombre_etiqueta = ?", (nombre_etiqueta_normalizado,))
+1305-            row = cursor.fetchone()
+1306-            if row: etiqueta_id = row['id_etiqueta']
+1307-        except sqlite3.Error as e:
+1308-            print(f"Error al agregar o buscar etiqueta '{nombre_etiqueta_normalizado}': {e}")
+1309-            if conn: conn.rollback()
+1310-        finally:
+1311-            close_db(conn)
+1312-    return etiqueta_id
+1313-
+1314-def get_etiqueta_by_id(id_etiqueta):
+1315-    conn = connect_db()
+1316-    etiqueta = None
+1317-    if conn:
+1318-        try:
+1319-            cursor = conn.cursor()
+1320:            cursor.execute("SELECT id_etiqueta, nombre_etiqueta FROM etiquetas WHERE id_etiqueta = ?", (id_etiqueta,))
+1321-            row = cursor.fetchone()
+1322-            if row:
+1323-                etiqueta = dict(row)
+1324-        except sqlite3.Error as e:
+1325-            print(f"Error al obtener etiqueta por ID {id_etiqueta}: {e}")
+1326-        finally:
+1327-            close_db(conn)
+1328-    return etiqueta
+1329-
+1330:def get_todas_las_etiquetas():
+1331:    """ Obtiene todas las etiquetas ordenadas alfabéticamente. """
+1332-    conn = connect_db()
+1333:    etiquetas = []
+1334-    if conn:
+1335-        try:
+1336-            cursor = conn.cursor()
+1337:            cursor.execute("SELECT id_etiqueta, nombre_etiqueta FROM etiquetas ORDER BY nombre_etiqueta ASC")
+1338-            rows = cursor.fetchall()
+1339:            etiquetas = [dict(row) for row in rows]
+1340-        except sqlite3.Error as e:
+1341:            print(f"Error al obtener todas las etiquetas: {e}")
+1342-        finally:
+1343-            close_db(conn)
+1344:    return etiquetas
+1345-
+1346-def delete_etiqueta(id_etiqueta):
+1347-    """ Elimina una etiqueta y todas sus asociaciones. ¡Usar con cuidado! """
+1348-    conn = connect_db()
+1349-    success = False
+1350-    if conn:
+1351-        try:
+1352-            cursor = conn.cursor()
+1353-            # ON DELETE CASCADE en las tablas de unión se encargará de borrar las asociaciones.
+1354:            cursor.execute("DELETE FROM etiquetas WHERE id_etiqueta = ?", (id_etiqueta,))
+1355-            conn.commit()
+1356-            if cursor.rowcount > 0:
+1357-                print(f"Etiqueta ID {id_etiqueta} y sus asociaciones eliminadas.")
+1358-                success = True
+1359-            else:
+1360-                print(f"No se encontró etiqueta con ID {id_etiqueta} para eliminar.")
+1361-        except sqlite3.Error as e:
+1362-            print(f"Error al eliminar etiqueta ID {id_etiqueta}: {e}")
+1363-            if conn: conn.rollback()
+1364-        finally:
+--
+1371-    conn = connect_db()
+1372-    success = False
+1373-    if conn:
+1374-        try:
+1375-            cursor = conn.cursor()
+1376:            cursor.execute("INSERT OR IGNORE INTO cliente_etiquetas (cliente_id, etiqueta_id) VALUES (?, ?)", (cliente_id, etiqueta_id))
+1377-            conn.commit()
+1378-            # rowcount podría ser 0 si la asignación ya existía (debido a INSERT OR IGNORE),
+1379-            # lo cual consideramos un éxito en el sentido de que la asignación está presente.
+1380-            success = True 
+1381-            print(f"Etiqueta ID {etiqueta_id} asignada (o ya estaba asignada) a cliente ID {cliente_id}.")
+1382-        except sqlite3.Error as e: # Podría ser un error de Foreign Key si cliente_id o etiqueta_id no existen
+1383-            print(f"Error al asignar etiqueta ID {etiqueta_id} a cliente ID {cliente_id}: {e}")
+1384-            if conn: conn.rollback()
+1385-        finally:
+1386-            close_db(conn)
+--
+1390-    conn = connect_db()
+1391-    success = False
+1392-    if conn:
+1393-        try:
+1394-            cursor = conn.cursor()
+1395:            cursor.execute("DELETE FROM cliente_etiquetas WHERE cliente_id = ? AND etiqueta_id = ?", (cliente_id, etiqueta_id))
+1396-            conn.commit()
+1397-            if cursor.rowcount > 0:
+1398-                print(f"Etiqueta ID {etiqueta_id} quitada del cliente ID {cliente_id}.")
+1399-                success = True
+1400-            else:
+1401-                print(f"No se encontró la asignación de etiqueta ID {etiqueta_id} para cliente ID {cliente_id}.")
+1402-                success = True # No es un error si no estaba asignada
+1403-        except sqlite3.Error as e:
+1404-            print(f"Error al quitar etiqueta ID {etiqueta_id} de cliente ID {cliente_id}: {e}")
+1405-            if conn: conn.rollback()
+1406-        finally:
+1407-            close_db(conn)
+1408-    return success
+1409-
+1410:def get_etiquetas_de_cliente(cliente_id):
+1411-    """ Obtiene una lista de objetos etiqueta (dict) asignados a un cliente. """
+1412-    conn = connect_db()
+1413:    etiquetas_cliente = []
+1414-    if conn:
+1415-        try:
+1416-            cursor = conn.cursor()
+1417-            cursor.execute('''
+1418-                SELECT e.id_etiqueta, e.nombre_etiqueta 
+1419:                FROM etiquetas e
+1420:                JOIN cliente_etiquetas ce ON e.id_etiqueta = ce.etiqueta_id
+1421-                WHERE ce.cliente_id = ?
+1422-                ORDER BY e.nombre_etiqueta ASC
+1423-            ''', (cliente_id,))
+1424-            rows = cursor.fetchall()
+1425:            etiquetas_cliente = [dict(row) for row in rows]
+1426-        except sqlite3.Error as e:
+1427:            print(f"Error al obtener etiquetas para el cliente ID {cliente_id}: {e}")
+1428-        finally:
+1429-            close_db(conn)
+1430:    return etiquetas_cliente
+1431-
+1432-# --- Funciones para Asignar/Quitar Etiquetas a Casos ---
+1433-
+1434-def asignar_etiqueta_a_caso(caso_id, etiqueta_id):
+1435-    conn = connect_db()
+1436-    success = False
+1437-    if conn:
+1438-        try:
+1439-            cursor = conn.cursor()
+1440:            cursor.execute("INSERT OR IGNORE INTO caso_etiquetas (caso_id, etiqueta_id) VALUES (?, ?)", (caso_id, etiqueta_id))
+1441-            conn.commit()
+1442-            success = True
+1443-            print(f"Etiqueta ID {etiqueta_id} asignada (o ya estaba asignada) a caso ID {caso_id}.")
+1444-        except sqlite3.Error as e:
+1445-            print(f"Error al asignar etiqueta ID {etiqueta_id} a caso ID {caso_id}: {e}")
+1446-            if conn: conn.rollback()
+1447-        finally:
+1448-            close_db(conn)
+1449-    return success
+1450-
+--
+1452-    conn = connect_db()
+1453-    success = False
+1454-    if conn:
+1455-        try:
+1456-            cursor = conn.cursor()
+1457:            cursor.execute("DELETE FROM caso_etiquetas WHERE caso_id = ? AND etiqueta_id = ?", (caso_id, etiqueta_id))
+1458-            conn.commit()
+1459-            if cursor.rowcount > 0:
+1460-                print(f"Etiqueta ID {etiqueta_id} quitada del caso ID {caso_id}.")
+1461-                success = True
+1462-            else:
+1463-                print(f"No se encontró la asignación de etiqueta ID {etiqueta_id} para caso ID {caso_id}.")
+1464-                success = True
+1465-        except sqlite3.Error as e:
+1466-            print(f"Error al quitar etiqueta ID {etiqueta_id} de caso ID {caso_id}: {e}")
+1467-            if conn: conn.rollback()
+1468-        finally:
+1469-            close_db(conn)
+1470-    return success
+1471-
+1472:def get_etiquetas_de_caso(caso_id):
+1473-    """ Obtiene una lista de objetos etiqueta (dict) asignados a un caso. """
+1474-    conn = connect_db()
+1475:    etiquetas_caso = []
+1476-    if conn:
+1477-        try:
+1478-            cursor = conn.cursor()
+1479-            cursor.execute('''
+1480-                SELECT e.id_etiqueta, e.nombre_etiqueta 
+1481:                FROM etiquetas e
+1482:                JOIN caso_etiquetas ce ON e.id_etiqueta = ce.etiqueta_id
+1483-                WHERE ce.caso_id = ?
+1484-                ORDER BY e.nombre_etiqueta ASC
+1485-            ''', (caso_id,))
+1486-            rows = cursor.fetchall()
+1487:            etiquetas_caso = [dict(row) for row in rows]
+1488-        except sqlite3.Error as e:
+1489:            print(f"Error al obtener etiquetas para el caso ID {caso_id}: {e}")
+1490-        finally:
+1491-            close_db(conn)
+1492:    return etiquetas_caso
+1493-
+1494-# --- Fin Funciones CRUD para Etiquetas ---
+1495-
+1496-# --- NUEVAS FUNCIONES CRUD PARA SISTEMA FINANCIERO ---
+1497-
+1498-# === HONORARIOS ===
+1499-def add_honorario(caso_id, descripcion, monto, fecha, estado="Pendiente", tipo="Consulta", notas=""):
+1500-    """Agregar un nuevo honorario"""
+1501-    conn = connect_db()
+1502-    success = False
+1503-    if conn:
+1504-        try:
+1505-            cursor = conn.cursor()
+1506-            cursor.execute('''
+1507:                INSERT INTO honorarios (caso_id, descripcion, monto, fecha, estado, tipo, notas, fecha_creacion)
+1508-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+1509-            ''', (caso_id, descripcion, monto, fecha, estado, tipo, notas))
+1510-            conn.commit()
+1511-            success = True
+1512-        except sqlite3.Error as e:
+1513-            print(f"Error al agregar honorario: {e}")
+1514-            conn.rollback()
+1515-        finally:
+1516-            close_db(conn)
+1517-    return success
+--
+1581-    success = False
+1582-    if conn:
+1583-        try:
+1584-            cursor = conn.cursor()
+1585-            cursor.execute('''
+1586:                INSERT INTO gastos (caso_id, descripcion, monto, fecha, categoria, reembolsable, notas, comprobante_path, fecha_creacion)
+1587-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+1588-            ''', (caso_id, descripcion, monto, fecha, categoria, 1 if reembolsable else 0, notas, comprobante_path))
+1589-            conn.commit()
+1590-            success = True
+1591-        except sqlite3.Error as e:
+1592-            print(f"Error al agregar gasto: {e}")
+1593-            conn.rollback()
+1594-        finally:
+1595-            close_db(conn)
+1596-    return success
+--
+1660-    success = False
+1661-    if conn:
+1662-        try:
+1663-            cursor = conn.cursor()
+1664-            cursor.execute('''
+1665:                INSERT INTO facturas (caso_id, numero, fecha, fecha_vencimiento, monto, estado, descripcion, fecha_creacion)
+1666-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+1667-            ''', (caso_id, numero, fecha, fecha_vencimiento, monto, estado, descripcion))
+1668-            conn.commit()
+1669-            success = True
+1670-        except sqlite3.Error as e:
+1671-            print(f"Error al agregar factura: {e}")
+1672-            conn.rollback()
+1673-        finally:
+1674-            close_db(conn)
+1675-    return success
+--
+1731-        finally:
+1732-            close_db(conn)
+1733-    return success
+1734-
+1735-# === FUNCIONES EXTENDIDAS PARA ETIQUETAS (COMPATIBILIDAD CON NUEVO MÓDULO) ===
+1736:def get_all_etiquetas():
+1737:    """Obtener todas las etiquetas con información completa"""
+1738-    conn = connect_db()
+1739:    etiquetas = []
+1740-    if conn:
+1741-        try:
+1742-            cursor = conn.cursor()
+1743-            cursor.execute('''
+1744-                SELECT id_etiqueta as id, nombre_etiqueta as nombre, 
+1745:                       descripcion, color, tipo, fecha_creacion
+1746:                FROM etiquetas 
+1747-                ORDER BY nombre_etiqueta ASC
+1748-            ''')
+1749-            rows = cursor.fetchall()
+1750:            etiquetas = [dict(row) for row in rows]
+1751-        except sqlite3.Error as e:
+1752:            print(f"Error al obtener etiquetas: {e}")
+1753-        finally:
+1754-            close_db(conn)
+1755:    return etiquetas
+1756-
+1757-def get_etiqueta_by_id(etiqueta_id):
+1758-    """Obtener una etiqueta por ID"""
+1759-    conn = connect_db()
+1760-    etiqueta = None
+1761-    if conn:
+1762-        try:
+1763-            cursor = conn.cursor()
+1764-            cursor.execute('''
+1765-                SELECT id_etiqueta as id, nombre_etiqueta as nombre,
+1766:                       descripcion, color, tipo, fecha_creacion
+1767:                FROM etiquetas 
+1768-                WHERE id_etiqueta = ?
+1769-            ''', (etiqueta_id,))
+1770-            row = cursor.fetchone()
+1771-            if row:
+1772-                etiqueta = dict(row)
+1773-        except sqlite3.Error as e:
+1774-            print(f"Error al obtener etiqueta: {e}")
+1775-        finally:
+1776-            close_db(conn)
+1777-    return etiqueta
+--
+1782-    success = False
+1783-    if conn:
+1784-        try:
+1785-            cursor = conn.cursor()
+1786-            cursor.execute('''
+1787:                INSERT INTO etiquetas (nombre_etiqueta, descripcion, color, tipo, fecha_creacion)
+1788-                VALUES (?, ?, ?, ?, datetime('now'))
+1789-            ''', (nombre, descripcion, color, tipo))
+1790-            conn.commit()
+1791-            success = True
+1792-        except sqlite3.Error as e:
+1793-            print(f"Error al agregar etiqueta: {e}")
+1794-            conn.rollback()
+1795-        finally:
+1796-            close_db(conn)
+1797-    return success
+--
+1802-    success = False
+1803-    if conn:
+1804-        try:
+1805-            cursor = conn.cursor()
+1806-            cursor.execute('''
+1807:                UPDATE etiquetas 
+1808-                SET nombre_etiqueta = ?, descripcion = ?, color = ?, tipo = ?
+1809-                WHERE id_etiqueta = ?
+1810-            ''', (nombre, descripcion, color, tipo, etiqueta_id))
+1811-            conn.commit()
+1812-            success = True
+1813-        except sqlite3.Error as e:
+1814-            print(f"Error al actualizar etiqueta: {e}")
+1815-            conn.rollback()
+1816-        finally:
+1817-            close_db(conn)
+--
+1822-    conn = connect_db()
+1823-    success = False
+1824-    if conn:
+1825-        try:
+1826-            cursor = conn.cursor()
+1827:            cursor.execute('DELETE FROM etiquetas WHERE id_etiqueta = ?', (etiqueta_id,))
+1828-            conn.commit()
+1829-            success = True
+1830-        except sqlite3.Error as e:
+1831-            print(f"Error al eliminar etiqueta: {e}")
+1832-            conn.rollback()
+1833-        finally:
+1834-            close_db(conn)
+1835-    return success
+1836-
+1837-# === FUNCIONES EXTENDIDAS PARA CLIENTES Y CASOS (ETIQUETAS COMO TEXTO) ===
+1838:def update_client_etiquetas(client_id, etiquetas_str):
+1839:    """Actualizar etiquetas de cliente como texto"""
+1840-    conn = connect_db()
+1841-    success = False
+1842-    if conn:
+1843-        try:
+1844-            cursor = conn.cursor()
+1845:            cursor.execute('UPDATE clientes SET etiquetas = ? WHERE id = ?', (etiquetas_str, client_id))
+1846-            conn.commit()
+1847-            success = True
+1848-        except sqlite3.Error as e:
+1849:            print(f"Error al actualizar etiquetas del cliente: {e}")
+1850-            conn.rollback()
+1851-        finally:
+1852-            close_db(conn)
+1853-    return success
+1854-
+1855:def update_case_etiquetas(case_id, etiquetas_str):
+1856:    """Actualizar etiquetas de caso como texto"""
+1857-    conn = connect_db()
+1858-    success = False
+1859-    if conn:
+1860-        try:
+1861-            cursor = conn.cursor()
+1862:            cursor.execute('UPDATE casos SET etiquetas = ? WHERE id = ?', (etiquetas_str, case_id))
+1863-            conn.commit()
+1864-            success = True
+1865-        except sqlite3.Error as e:
+1866:            print(f"Error al actualizar etiquetas del caso: {e}")
+1867-            conn.rollback()
+1868-        finally:
+1869-            close_db(conn)
+1870-    return success
+1871-
+1872-def get_all_cases():
+1873:    """Obtener todos los casos (para el módulo de etiquetas)"""
+1874-    conn = connect_db()
+1875-    cases = []
+1876-    if conn:
+1877-        try:
+1878-            cursor = conn.cursor()
+1879-            cursor.execute('''
+1880-                SELECT c.*, cl.nombre as cliente_nombre
+1881-                FROM casos c
+1882-                LEFT JOIN clientes cl ON c.cliente_id = cl.id
+1883-                ORDER BY c.caratula ASC
+--
+1901-    return get_fechas_con_audiencias()
+1902-
+1903-def get_audiencias_by_date(fecha):
+1904-    return get_audiencias_by_fecha(fecha)
+1905-
+1906:def get_all_etiquetas_simple():
+1907-    conn = connect_db()
+1908-    if not conn:
+1909-        return []
+1910-    try:
+1911-        cursor = conn.cursor()
+1912:        cursor.execute("SELECT id_etiqueta, nombre_etiqueta FROM etiquetas ORDER BY nombre_etiqueta")
+1913-        return cursor.fetchall()
+1914-    except:
+1915-        return []
+1916-    finally:
+1917-        close_db(conn)
+1918-
+1919-# === FIN FUNCIONES COMPATIBILIDAD ===

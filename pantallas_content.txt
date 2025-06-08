@@ -1,0 +1,1 @@
+{"origin_pdf_path": "/workspace/user_input_files/pantallas.pdf", "text_in_pdf": "Antes  \n \nAhora:", "files_in_pdf": []}
