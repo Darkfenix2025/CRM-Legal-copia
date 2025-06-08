@@ -153,6 +153,28 @@ def create_tables():
             ''')
             # COLLATE NOCASE en UNIQUE para que "Urgente" y "urgente" se consideren la misma etiqueta.
 
+            # --- Add columns to etiquetas if they don't exist, with defaults ---
+            try:
+                cursor.execute('ALTER TABLE etiquetas ADD COLUMN descripcion TEXT DEFAULT "";')
+            except sqlite3.OperationalError:
+                pass # La columna ya existe
+
+            try:
+                cursor.execute('ALTER TABLE etiquetas ADD COLUMN color TEXT DEFAULT "#3498db";')
+            except sqlite3.OperationalError:
+                pass # La columna ya existe
+
+            try:
+                cursor.execute('ALTER TABLE etiquetas ADD COLUMN tipo TEXT DEFAULT "general";')
+            except sqlite3.OperationalError:
+                pass # La columna ya existe
+
+            try:
+                cursor.execute('ALTER TABLE etiquetas ADD COLUMN fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP;')
+            except sqlite3.OperationalError:
+                pass # La columna ya existe
+            # --- End add columns to etiquetas ---
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS cliente_etiquetas (
                     cliente_id INTEGER NOT NULL,
@@ -293,26 +315,8 @@ def create_tables():
             # --- FIN NUEVAS TABLAS FINANCIERAS ---
 
             # --- ACTUALIZACIÓN DE TABLAS DE ETIQUETAS PARA COMPATIBILIDAD ---
-            # Agregar nuevas columnas a la tabla etiquetas existente para mayor funcionalidad
-            try:
-                cursor.execute('ALTER TABLE etiquetas ADD COLUMN descripcion TEXT DEFAULT "";')
-            except sqlite3.OperationalError:
-                pass  # La columna ya existe
-            
-            try:
-                cursor.execute('ALTER TABLE etiquetas ADD COLUMN color TEXT DEFAULT "#3498db";')
-            except sqlite3.OperationalError:
-                pass  # La columna ya existe
-                
-            try:
-                cursor.execute('ALTER TABLE etiquetas ADD COLUMN tipo TEXT DEFAULT "general";')
-            except sqlite3.OperationalError:
-                pass  # La columna ya existe
-                
-            try:
-                cursor.execute('ALTER TABLE etiquetas ADD COLUMN fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP;')
-            except sqlite3.OperationalError:
-                pass  # La columna ya existe
+            # Las ALTER TABLE para la tabla 'etiquetas' se movieron más arriba,
+            # justo después de su creación, para mantener la definición de la tabla agrupada.
 
             # Agregar columna etiquetas como texto a clientes y casos para compatibilidad
             try:

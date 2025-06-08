@@ -418,9 +418,9 @@ class CRMLegalApp:
         
                 # Configuración de columnas principales del CRM
         crm_main_frame.rowconfigure(0, weight=1)
-        crm_main_frame.columnconfigure(0, weight=0)  # Clientes (ancho fijo relativo)
-        crm_main_frame.columnconfigure(1, weight=0)  # Casos/Calendario (ancho fijo relativo)
-        crm_main_frame.columnconfigure(2, weight=2)  # Notebook y Audiencias (más espacio)
+        crm_main_frame.columnconfigure(0, weight=1)  # Clientes (ancho fijo relativo)
+        crm_main_frame.columnconfigure(1, weight=1)  # Casos/Calendario (ancho fijo relativo)
+        crm_main_frame.columnconfigure(2, weight=1)  # Notebook y Audiencias (más espacio)
 
         # --- Columna 1: Clientes ---
         col1_frame = ttk.Frame(crm_main_frame)
