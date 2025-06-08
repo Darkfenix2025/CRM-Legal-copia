@@ -171,7 +171,7 @@ class SeguimientoTab(ttk.Frame):
 
             if self.selected_actividad_id:
                 self.mostrar_detalle_completo_actividad(self.selected_actividad_id)
-                print(f"Actividad seleccionada en SeguimientoTab: ID {self.selected_actividad_id}")
+                # print(f"Actividad seleccionada en SeguimientoTab: ID {self.selected_actividad_id}") # DEBUG
             else:
                 self.limpiar_detalle_completo_actividad()
         else:
@@ -180,7 +180,7 @@ class SeguimientoTab(ttk.Frame):
 
         self._update_action_buttons_state()
 
-    def set_add_button_state(self, state_ignored):
+    def set_add_button_state(self): # Parámetro state_ignored eliminado
         self._update_action_buttons_state()
 
     def _update_action_buttons_state(self):

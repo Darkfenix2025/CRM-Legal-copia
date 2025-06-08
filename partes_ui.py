@@ -166,7 +166,7 @@ class PartesTab(ttk.Frame):
 
         self._update_action_buttons_state()
 
-    def set_add_button_state(self, state_ignored=None): # state_ignored para mantener consistencia con SeguimientoTab
+    def set_add_button_state(self): # Parámetro state_ignored eliminado
         self._update_action_buttons_state()
 
     def _update_action_buttons_state(self):

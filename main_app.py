@@ -659,11 +659,11 @@ class CRMLegalApp:
         
         # Establecer estado inicial de botones dentro de las pestañas modulares
         if hasattr(self, 'tareas_tab_frame'):
-            self.tareas_tab_frame.set_add_button_state() # Llamada inicial para estado correcto
+        self.tareas_tab_frame.set_add_button_state()
         if hasattr(self, 'seguimiento_tab_frame'):
-            self.seguimiento_tab_frame.set_add_button_state(tk.DISABLED)
+        self.seguimiento_tab_frame.set_add_button_state()
         if hasattr(self, 'partes_tab_frame'):
-            self.partes_tab_frame.set_add_button_state(tk.DISABLED)
+        self.partes_tab_frame.set_add_button_state()
 
         print("Widgets creados con estructura de 3 columnas y pestañas modulares + TareasTab.")
 
@@ -803,36 +803,28 @@ class CRMLegalApp:
                 # Cargar datos en pestañas modulares
                 if hasattr(self, 'seguimiento_tab_frame'):
                     self.seguimiento_tab_frame.load_actividades(self.selected_case['id'])
-                    self.seguimiento_tab_frame.set_add_button_state(None) 
+                    self.seguimiento_tab_frame.set_add_button_state()
                 if hasattr(self, 'partes_tab_frame'):
                     self.partes_tab_frame.load_partes(self.selected_case['id'])
-                    self.partes_tab_frame.set_add_button_state(None)
+                    self.partes_tab_frame.set_add_button_state()
+                # La lógica para tareas_tab_frame se actualiza más abajo de forma general
             else: 
                 print("[MainApp Debug] Ningún caso seleccionado para Partes.") # DEBUG
                 self.selected_case = None
-                self.clear_case_details() # Limpia todo lo relacionado al caso
-                if hasattr(self, 'partes_tab_frame'): # NUEVO
-                    self.partes_tab_frame.load_partes(None)
-                    self.partes_tab_frame.set_add_button_state(None) # Esto llama a _update_action_buttons_state
+                self.clear_case_details() # Limpia todo lo relacionado al caso, que llamará a disable_detail_tabs_for_case
 
         else: 
             self.selected_case = None
-            self.clear_case_details() # Limpia todo lo relacionado al caso
-            self.update_add_audiencia_button_state()
-            if hasattr(self, 'partes_tab_frame'): # NUEVO
-                self.partes_tab_frame.load_partes(None)
-                self.partes_tab_frame.set_add_button_state(None) # Esto llama a _update_action_buttons_state
+            self.clear_case_details() # Limpia todo lo relacionado al caso, que llamará a disable_detail_tabs_for_case
         
-        if self.selected_case:
-            # ... (lógica existente para detalles, documentos, botones, otras pestañas) ...
-            if hasattr(self, 'tareas_tab_frame'):
+        # Actualizar TareasTab independientemente de si el caso fue encontrado o no,
+        # ya que clear_case_details() la limpiará si selected_case es None.
+        if hasattr(self, 'tareas_tab_frame'):
+            if self.selected_case:
                 self.tareas_tab_frame.load_tareas(self.selected_case['id'])
-                self.tareas_tab_frame.set_add_button_state()
-        else: # No hay caso seleccionado o la selección falló
-            # ... (lógica existente para limpiar detalles, otras pestañas) ...
-            if hasattr(self, 'tareas_tab_frame'):
-                self.tareas_tab_frame.load_tareas(None)
-                self.tareas_tab_frame.set_add_button_state()
+            else:
+                self.tareas_tab_frame.load_tareas(None) # Asegurar que se limpian si no hay caso
+            self.tareas_tab_frame.set_add_button_state()
 
         self.root.update_idletasks() 
         #print(f"[DEBUG on_case_select] ANTES de update_add_audiencia_button_state -> self.selected_case: {self.selected_case}")
@@ -918,18 +910,24 @@ class CRMLegalApp:
         
         if hasattr(self, 'partes_tab_frame'):
             self.main_notebook.tab(self.partes_tab_frame, state='disabled')
-            if hasattr(self.partes_tab_frame, 'load_partes'): # Seguridad adicional
-                self.partes_tab_frame.load_partes(None) 
+            if hasattr(self.partes_tab_frame, 'load_partes'):
+                self.partes_tab_frame.load_partes(None)
+            if hasattr(self.partes_tab_frame, 'set_add_button_state'):
+                self.partes_tab_frame.set_add_button_state()
         
         if hasattr(self, 'seguimiento_tab_frame'):
             self.main_notebook.tab(self.seguimiento_tab_frame, state='disabled')
-            if hasattr(self.seguimiento_tab_frame, 'load_actividades'): # Seguridad adicional
+            if hasattr(self.seguimiento_tab_frame, 'load_actividades'):
                 self.seguimiento_tab_frame.load_actividades(None)
+            if hasattr(self.seguimiento_tab_frame, 'set_add_button_state'):
+                self.seguimiento_tab_frame.set_add_button_state()
 
         if hasattr(self, 'tareas_tab_frame'):
             self.main_notebook.tab(self.tareas_tab_frame, state='disabled')
             if hasattr(self.tareas_tab_frame, 'load_tareas'):
-                self.tareas_tab_frame.load_tareas(None) 
+                self.tareas_tab_frame.load_tareas(None)
+            if hasattr(self.tareas_tab_frame, 'set_add_button_state'):
+                self.tareas_tab_frame.set_add_button_state()
 
 # --- NUEVOS MÉTODOS PARA DIÁLOGOS Y LÓGICA DE TAREAS ---
 
@@ -1669,8 +1667,17 @@ class CRMLegalApp:
                             stat_info = entry.stat()
                             mod_time = datetime.datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M')
                             self.document_tree.insert('', tk.END, values=(f"[CARPETA] {entry.name}", "Carpeta", mod_time), iid=entry.path, tags=('folder',))
-                        except OSError as e: print(f"Warn: No se pudo leer info de carpeta {entry.path}: {e}")
-                        except Exception as e: print(f"Error procesando carpeta {entry.path}: {e}")
+                        except PermissionError as e:
+                            print(f"Warn: Permiso denegado para carpeta {entry.path}: {e}")
+                            self.document_tree.insert('', tk.END, values=(f"[CARPETA] {entry.name} (Acceso denegado)", "Carpeta", "N/A"), iid=entry.path, tags=('folder_error',))
+                        except FileNotFoundError as e:
+                            print(f"Warn: Carpeta no encontrada (puede haber sido eliminada durante el escaneo) {entry.path}: {e}")
+                            # No insertar nada si no se encuentra
+                        except OSError as e:
+                            print(f"Warn: Error OSError leyendo info de carpeta {entry.path}: {e}")
+                            self.document_tree.insert('', tk.END, values=(f"[CARPETA] {entry.name} (Error lectura)", "Carpeta", "N/A"), iid=entry.path, tags=('folder_error',))
+                        except Exception as e:
+                            print(f"Error procesando carpeta {entry.path}: {e}")
                 
                 # Luego listar archivos
                 for entry in sorted(os.scandir(folder_path), key=lambda e: e.name.lower()): # Ordenar alfabéticamente
@@ -1684,14 +1691,29 @@ class CRMLegalApp:
                             else: size_display = f"{size_bytes/1024**3:.1f} GB"
                             mod_time = datetime.datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M')
                             self.document_tree.insert('', tk.END, values=(entry.name, size_display, mod_time), iid=entry.path, tags=('file',))
-                        except OSError as e: print(f"Warn: No se pudo leer info de archivo {entry.path}: {e}")
-                        except Exception as e: print(f"Error procesando archivo {entry.path}: {e}")
+                        except PermissionError as e:
+                            print(f"Warn: Permiso denegado para archivo {entry.path}: {e}")
+                            self.document_tree.insert('', tk.END, values=(f"{entry.name} (Acceso denegado)", "Archivo", "N/A"), iid=entry.path, tags=('file_error',))
+                        except FileNotFoundError as e:
+                            print(f"Warn: Archivo no encontrado (puede haber sido eliminado durante el escaneo) {entry.path}: {e}")
+                            # No insertar nada si no se encuentra
+                        except OSError as e:
+                            print(f"Warn: Error OSError leyendo info de archivo {entry.path}: {e}")
+                            self.document_tree.insert('', tk.END, values=(f"{entry.name} (Error lectura)", "Archivo", "N/A"), iid=entry.path, tags=('file_error',))
+                        except Exception as e:
+                            print(f"Error procesando archivo {entry.path}: {e}")
 
+            except PermissionError as e:
+                print(f"Error de Permiso al listar directorio {folder_path}: {e}")
+                self.document_tree.insert('', tk.END, values=(f"Acceso denegado a la carpeta: {os.path.basename(folder_path)}", "", ""), iid="error_permission_main")
+            except FileNotFoundError as e:
+                print(f"Error: Carpeta no encontrada {folder_path}: {e}")
+                self.document_tree.insert('', tk.END, values=(f"Carpeta no encontrada: {os.path.basename(folder_path)}", "", ""), iid="error_notfound_main")
             except OSError as e:
-                print(f"Error listando directorio {folder_path}: {e}")
-                self.document_tree.insert('', tk.END, values=(f"Error al leer directorio: {e}", "", ""), iid="error_dir_listing")
-            except Exception as e:
-                print(f"Error inesperado listando directorio {folder_path}: {e}")
+                print(f"Error OSError al listar directorio {folder_path}: {e}")
+                self.document_tree.insert('', tk.END, values=(f"Error al leer directorio: {os.path.basename(folder_path)}", "", ""), iid="error_oserror_main")
+            except Exception as e: # Captura general para errores inesperados durante os.scandir o el bucle principal
+                print(f"Error inesperado listando directorio {folder_path}: {type(e).__name__} - {e}")
                 self.document_tree.insert('', tk.END, values=("Error inesperado al listar", "", ""), iid="error_unexpected_listing")
         elif self.selected_case:
             self.document_tree.insert('', tk.END, values=("Carpeta no asignada o no encontrada.", "", ""), iid="no_folder_or_invalid")

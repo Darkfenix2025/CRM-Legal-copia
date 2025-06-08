@@ -339,6 +339,6 @@ class TareasTab(ttk.Frame):
         if self.selected_tarea_id:
             self._open_edit_tarea_dialog_wrapper()
             
-    def set_add_button_state(self, state_ignored=None): # Para consistencia con otras pestañas
+    def set_add_button_state(self): # Parámetro state_ignored eliminado
         """Actualiza el estado de los botones de acción, llamado desde main_app."""
         self._update_action_buttons_state()
